@@ -20,8 +20,25 @@ import com.google.mlkit.vision.face.FaceDetectorOptions
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+/**
+ * Main entry point of the Face Recognition App.
+ *
+ * This activity manages the full lifecycle of real-time face detection:
+ * 1. Requests the [Manifest.permission.CAMERA] permission at runtime.
+ * 2. Binds a CameraX [Preview] use-case so the user sees a live camera feed.
+ * 3. Binds a CameraX [ImageAnalysis] use-case that pipes every frame through
+ *    the Google ML Kit [com.google.mlkit.vision.face.FaceDetector].
+ * 4. Forwards detected-face bounding boxes to [FaceBoxOverlay], which draws
+ *    green rectangles around each face on top of the live preview.
+ */
 class MainActivity : AppCompatActivity() {
 
+    /**
+     * Activity-result launcher used to request the [Manifest.permission.CAMERA] permission.
+     *
+     * On a granted result [startCamera] is invoked immediately; on denial a toast is shown
+     * and the camera is not started.
+     */
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -32,6 +49,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Checks whether the [Manifest.permission.CAMERA] permission has already been granted.
+     *
+     * If the permission is already available [startCamera] is called directly; otherwise
+     * [requestPermissionLauncher] initiates the system permission dialog.
+     */
     private fun checkPermissions() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             startCamera()
@@ -40,6 +63,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Configures and starts the CameraX pipeline with face-detection analysis.
+     *
+     * Two CameraX use-cases are bound to the activity lifecycle:
+     * - **Preview** — renders the live camera feed inside the [androidx.camera.view.PreviewView]
+     *   with id `R.id.viewFinder`.
+     * - **ImageAnalysis** — receives every camera frame (keeping only the latest when the
+     *   processor is busy) and runs it through the ML Kit
+     *   [com.google.mlkit.vision.face.FaceDetector] configured in
+     *   [com.google.mlkit.vision.face.FaceDetectorOptions.PERFORMANCE_MODE_FAST].
+     *
+     * Detected face bounding boxes are forwarded to [FaceBoxOverlay.setFaces] so that green
+     * rectangles are drawn over the live preview.  The default back camera is used.
+     */
     @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -93,6 +130,17 @@ class MainActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
+    /**
+     * Called when the activity is first created.
+     *
+     * Sets up edge-to-edge display, inflates the main layout, applies system-bar insets so
+     * content is not obscured by navigation or status bars, and then calls [checkPermissions]
+     * to begin the camera/permission flow.
+     *
+     * @param savedInstanceState If the activity is being re-created from a previous saved state,
+     *   this bundle contains the data it most recently supplied in
+     *   [onSaveInstanceState]; otherwise it is `null`.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
